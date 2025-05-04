@@ -1,18 +1,22 @@
 "use client";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { ChevronLeft, UploadCloud, X } from "lucide-react";
 import Link from "next/link";
 import toast, { Toaster } from "react-hot-toast";
 import Navbar from "@/components/admin/Navbar";
-import { departments } from "@/types/constant";
+import { departments, semesterOptions, sections } from "@/types/constant";
+import Select,{StylesConfig} from "react-select";
 
 type Course = {
   id: number;
   name: string;
 };
 
+
+
 const Page = () => {
   const [selectedDepartment, setSelectedDepartment] = useState<string>("");
+  const [selectedSemester, setSelectedSemester] = useState<number | null>(null);
   const [availableCourses, setAvailableCourses] = useState<Course[]>([]);
   const [selectedCourses, setSelectedCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(false);
@@ -25,11 +29,21 @@ const Page = () => {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>("");
 
-  const fetchCourses = async (department: string) => {
+  const departmentOptions = departments.map((dep) => ({
+    value: dep,
+    label: dep,
+  }));
+
+  const sectionOptions = sections.map((sem) => ({
+    value: sem,
+    label: sem,
+  }));
+
+  const fetchCourses = async (department: string, semester: number) => {
     setIsLoading(true);
     try {
       const response = await fetch(
-        `/api/student/courses_forDep?department=${department}`
+        `/api/student/courses_forDep?department=${department}&semester=${semester}`
       );
       const data = await response.json();
       setAvailableCourses(data);
@@ -41,26 +55,43 @@ const Page = () => {
     }
   };
 
-  const handleDepartmentChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const department = e.target.value;
+  const handleDepartmentChange = (selectedOption: any) => {
+    const department = selectedOption?.value || "";
     setSelectedDepartment(department);
     setSelectedCourses([]);
-    if (department) {
-      fetchCourses(department);
+    if (department && selectedSemester) {
+      fetchCourses(department, selectedSemester);
     } else {
       setAvailableCourses([]);
     }
   };
 
-  const handleCourseChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const selectedId = parseInt(e.target.value);
-    const selectedCourse = availableCourses.find((c) => c.id === selectedId);
-    if (
-      selectedCourse &&
-      !selectedCourses.find((c) => c.id === selectedCourse.id)
-    ) {
-      setSelectedCourses((prev) => [...prev, selectedCourse]);
+  const handleSemesterChange = (selectedOption: any) => {
+    const semester = selectedOption?.value || null;
+    setSelectedSemester(semester);
+    setSelectedCourses([]);
+    if (semester && selectedDepartment) {
+      fetchCourses(selectedDepartment, semester);
+    } else {
+      setAvailableCourses([]);
     }
+  };
+
+  const handleSectionChange = (selectedOption: any) => {
+    setSection(selectedOption?.value || "");
+  };
+
+  const handleCourseChange = (selectedOptions: any) => {
+    if (!selectedOptions) {
+      setSelectedCourses([]);
+      return;
+    }
+
+    const selectedIds = selectedOptions.map((option: any) => option.value);
+    const newSelectedCourses = availableCourses.filter((course) =>
+      selectedIds.includes(course.id)
+    );
+    setSelectedCourses(newSelectedCourses);
   };
 
   const handleRemoveCourse = (courseToRemove: Course) => {
@@ -103,8 +134,15 @@ const Page = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    
-    if (!regNo || !name || !selectedDepartment || !section || !email) {
+
+    if (
+      !regNo ||
+      !name ||
+      !selectedDepartment ||
+      !selectedSemester ||
+      !section ||
+      !email
+    ) {
       toast.error("Please fill all required fields");
       setLoading(false);
       return;
@@ -113,7 +151,7 @@ const Page = () => {
     try {
       let uploadedImageUrl = "";
       let imageBytea = "";
-      
+
       if (imageFile) {
         uploadedImageUrl = await uploadToCloudinary(imageFile);
         imageBytea = await convertToBase64(imageFile);
@@ -123,6 +161,7 @@ const Page = () => {
         regNo,
         name,
         department: selectedDepartment,
+        semester: selectedSemester,
         section,
         email,
         phone,
@@ -148,6 +187,7 @@ const Page = () => {
       setRegNo("");
       setName("");
       setSelectedDepartment("");
+      setSelectedSemester(null);
       setSection("");
       setEmail("");
       setPhone("");
@@ -162,21 +202,38 @@ const Page = () => {
     }
   };
 
+  const courseOptions = availableCourses.map((course) => ({
+    value: course.id,
+    label: course.name,
+  }));
+
+  const selectedCourseOptions = selectedCourses.map((course) => ({
+    value: course.id,
+    label: course.name,
+  }));
+  const customStyles: StylesConfig = {
+    control: (provided, state) => ({
+      ...provided,
+      borderColor: state.isFocused ? "black" : provided.borderColor,
+      boxShadow: state.isFocused ? "0 0 0 1px black" : provided.boxShadow,
+      "&:hover": {
+        borderColor: "black",
+      },
+    }),
+  };
+
   return (
     <div className="min-h-screen bg-gray-100">
       <Toaster position="top-center" reverseOrder={false} />
 
-      {/* Sidebar Navbar */}
       <div className="hidden sm:block fixed h-full z-40">
         <Navbar />
       </div>
 
-      {/* Mobile Navbar */}
       <div className="sm:hidden fixed top-4 left-4 z-50">
         <Navbar />
       </div>
 
-      {/* Main Content */}
       <div className="flex-1 overflow-auto ml-0 sm:ml-20 lg:ml-64 px-4 sm:px-6 lg:px-8 py-8">
         <div className="max-w-4xl mx-auto">
           <div className="flex flex-col gap-2 mb-8">
@@ -193,7 +250,8 @@ const Page = () => {
               </h1>
             </div>
             <p className="text-sm text-gray-600">
-              Fill out the form to add a new student. Fields marked with <span className="text-red-500">*</span> are required.
+              Fill out the form to add a new student. Fields marked with{" "}
+              <span className="text-red-500">*</span> are required.
             </p>
           </div>
 
@@ -202,7 +260,10 @@ const Page = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Reg No */}
                 <div className="space-y-2">
-                  <label htmlFor="regNo" className="block text-sm font-medium text-gray-800">
+                  <label
+                    htmlFor="regNo"
+                    className="block text-sm font-medium text-gray-800"
+                  >
                     Registration Number <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -219,7 +280,10 @@ const Page = () => {
 
                 {/* Name */}
                 <div className="space-y-2">
-                  <label htmlFor="name" className="block text-sm font-medium text-gray-800">
+                  <label
+                    htmlFor="name"
+                    className="block text-sm font-medium text-gray-800"
+                  >
                     Full Name <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -236,55 +300,64 @@ const Page = () => {
 
                 {/* Department */}
                 <div className="space-y-2">
-                  <label htmlFor="department" className="block text-sm font-medium text-gray-800">
+                  <label className="block text-sm font-medium text-gray-800">
                     Department <span className="text-red-500">*</span>
                   </label>
-                  <select
-                    id="department"
-                    name="department"
-                    value={selectedDepartment}
+                  <Select
+                    options={departmentOptions}
                     onChange={handleDepartmentChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition"
+                    value={departmentOptions.find(
+                      (option) => option.value === selectedDepartment
+                    )}
+                    placeholder="Select Department"
+                    styles={customStyles}
+                    isSearchable
                     required
-                  >
-                    <option value="">Select Department</option>
-                    {departments.map((dep) => {
-                      const value = dep
-                        .replace(/\s+/g, "")
-                        .replace(/^./, (char) => char.toLowerCase());
-                      return (
-                        <option key={value} value={value}>
-                          {dep}
-                        </option>
-                      );
-                    })}
-                  </select>
+                  />
+                </div>
+
+                {/* Semester */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-800">
+                    Semester <span className="text-red-500">*</span>
+                  </label>
+                  <Select
+                    options={semesterOptions}
+                    onChange={handleSemesterChange}
+                    value={semesterOptions.find(
+                      (option) => option.value === selectedSemester
+                    )}
+                    placeholder="Select Semester"
+                    styles={customStyles}
+                    isSearchable
+                    required
+                  />
                 </div>
 
                 {/* Section */}
                 <div className="space-y-2">
-                  <label htmlFor="section" className="block text-sm font-medium text-gray-800">
+                  <label className="block text-sm font-medium text-gray-800">
                     Section <span className="text-red-500">*</span>
                   </label>
-                  <select
-                    id="section"
-                    name="section"
-                    value={section}
-                    onChange={(e) => setSection(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition"
+                  <Select
+                    options={sectionOptions}
+                    onChange={handleSectionChange}
+                    value={sectionOptions.find(
+                      (option) => option.value === section
+                    )}
+                    placeholder="Select Section"
+                    styles={customStyles}
+                    isSearchable
                     required
-                  >
-                    <option value="">Select Section</option>
-                    <option value="A">A</option>
-                    <option value="B">B</option>
-                    <option value="C">C</option>
-                    <option value="D">D</option>
-                  </select>
+                  />
                 </div>
 
                 {/* Email */}
                 <div className="space-y-2">
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-800">
+                  <label
+                    htmlFor="email"
+                    className="block text-sm font-medium text-gray-800"
+                  >
                     Email <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -301,7 +374,10 @@ const Page = () => {
 
                 {/* Phone */}
                 <div className="space-y-2">
-                  <label htmlFor="phone" className="block text-sm font-medium text-gray-800">
+                  <label
+                    htmlFor="phone"
+                    className="block text-sm font-medium text-gray-800"
+                  >
                     Phone Number
                   </label>
                   <input
@@ -315,10 +391,10 @@ const Page = () => {
                   />
                 </div>
 
-                {/* Courses - Only shown when department is selected */}
-                {selectedDepartment && (
+                {/* Courses - Only shown when department and semester are selected */}
+                {selectedDepartment && selectedSemester && (
                   <div className="space-y-2 md:col-span-2">
-                    <label htmlFor="courses" className="block text-sm font-medium text-gray-800">
+                    <label className="block text-sm font-medium text-gray-800">
                       Courses
                     </label>
                     {isLoading ? (
@@ -327,23 +403,21 @@ const Page = () => {
                       </div>
                     ) : (
                       <div className="flex flex-col space-y-2">
-                        <select
-                          id="courses"
-                          name="courses"
+                        <Select
+                          options={courseOptions}
                           onChange={handleCourseChange}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition"
-                          disabled={availableCourses.length === 0}
-                        >
-                          <option value="">Select Course</option>
-                          {Array.isArray(availableCourses) &&
-                            availableCourses.map((course) => (
-                              <option key={course.id} value={course.id}>
-                                {course.name}
-                              </option>
-                            ))}
-                        </select>
+                          value={selectedCourseOptions}
+                          placeholder="Select Courses"
+                          styles={customStyles}
+                          isMulti
+                          isSearchable
+                          isDisabled={availableCourses.length === 0}
+                        />
                         {availableCourses.length === 0 && !isLoading && (
-                          <p className="text-sm text-gray-600">No courses available for this department</p>
+                          <p className="text-sm text-gray-600">
+                            No courses available for this department and
+                            semester
+                          </p>
                         )}
                       </div>
                     )}
@@ -433,7 +507,9 @@ const Page = () => {
                         key={course.id}
                         className="flex items-center gap-2 bg-gray-100 px-3 py-2 rounded-lg border border-gray-200"
                       >
-                        <span className="text-sm text-gray-900">{course.name}</span>
+                        <span className="text-sm text-gray-900">
+                          {course.name}
+                        </span>
                         <button
                           type="button"
                           onClick={() => handleRemoveCourse(course)}
@@ -453,7 +529,7 @@ const Page = () => {
                 <button
                   type="submit"
                   disabled={loading}
-                  className={`w-full py-3 px-6 rounded-lg font-medium text-white flex justify-center items-center gap-2 transition ${
+                  className={`w-full py-3 px-6 rounded-lg cursor-pointer font-medium text-white flex justify-center items-center gap-2 transition ${
                     loading
                       ? "bg-gray-600 cursor-not-allowed"
                       : "bg-black hover:bg-gray-800 focus:ring-2 focus:ring-gray-800 focus:ring-offset-2"

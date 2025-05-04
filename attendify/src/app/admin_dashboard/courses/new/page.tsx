@@ -7,7 +7,7 @@ import { departments, semesters, creditHoursOptions } from "@/types/constant";
 import { Teacher_for_courses } from "@/types";
 import { Course } from "@/types";
 import toast, { Toaster } from "react-hot-toast";
-import Select from 'react-select';
+import Select,{StylesConfig} from 'react-select';
 import makeAnimated from 'react-select/animated';
 
 const animatedComponents = makeAnimated();
@@ -136,35 +136,16 @@ const Page = () => {
     }
   };
 
-  // Custom styles for react-select to match black theme
-  const customStyles = {
-    control: (provided: any) => ({
-      ...provided,
-      minHeight: '44px',
-      border: '1px solid #d1d5db',
-      borderRadius: '0.5rem',
-      boxShadow: 'none',
-      '&:hover': {
-        borderColor: '#9ca3af',
-      },
-      '&:focus-within': {
-        borderColor: '#000',
-        boxShadow: '0 0 0 2px rgba(0, 0, 0, 0.1)',
-      },
-    }),
-    option: (provided: any, state: any) => ({
-      ...provided,
-      backgroundColor: state.isSelected ? '#000' : state.isFocused ? '#f3f4f6' : 'white',
-      color: state.isSelected ? 'white' : '#111827',
-      '&:active': {
-        backgroundColor: '#e5e7eb',
-      },
-    }),
-    menu: (provided: any) => ({
-      ...provided,
-      zIndex: 20,
-    }),
-  };
+  const customStyles: StylesConfig = {
+      control: (provided, state) => ({
+        ...provided,
+        borderColor: state.isFocused ? "black" : provided.borderColor,
+        boxShadow: state.isFocused ? "0 0 0 1px black" : provided.boxShadow,
+        "&:hover": {
+          borderColor: "black",
+        },
+      }),
+    };
 
   return (
     <div className="min-h-screen bg-gray-50">

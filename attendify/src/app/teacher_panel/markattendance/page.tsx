@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
+import Select from "react-select";
 import Navbar from "@/components/teacher/Navbar";
-import { departments, sections, weeks } from "@/types/constant";
+import { departments, sections, weeks } from "../../../types/constant";
 import toast, { Toaster } from "react-hot-toast";
 
 interface Schedule {
@@ -24,25 +25,26 @@ interface Student {
 }
 
 export default function Page() {
-  const [selectedDepartment, setSelectedDepartment] = useState("");
+  const [selectedDepartment, setSelectedDepartment] = useState<any>(null);
   const [courseData, setCourseData] = useState<Course[]>([]);
   const [scheduleData, setScheduleData] = useState<Schedule[]>([]);
-  const [selectedCourse, setSelectedCourse] = useState("");
-  const [selectedSection, setSelectedSection] = useState("");
-  const [selectedClass, setSelectedClass] = useState("");
-  const [selectedWeek, setSelectedWeek] = useState("");
+  const [selectedCourse, setSelectedCourse] = useState<any>(null);
+  const [selectedSection, setSelectedSection] = useState<any>(null);
+  const [selectedClass, setSelectedClass] = useState<any>(null);
+  const [selectedWeek, setSelectedWeek] = useState<any>(null);
   const [students, setStudents] = useState<Student[]>([]);
   const [presentStudents, setPresentStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(false);
   const [courseLoading, setCourseLoading] = useState(false);
-  const [classtimeLoading, setclasstimeLoading] = useState(false);
+  const [classtimeLoading, setClasstimeLoading] = useState(false);
 
-  const handleDepartment = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const dept = e.target.value;
-    setSelectedDepartment(dept);
+  const handleDepartment = async (option: any) => {
+    setSelectedDepartment(option);
     setCourseLoading(true);
     try {
-      const res = await fetch(`/api/markattendance/courses?department=${dept}`);
+      const res = await fetch(
+        `/api/markattendance/courses?department=${option.value}`
+      );
       const data = await res.json();
       setCourseData(data);
     } catch (err) {
@@ -52,20 +54,20 @@ export default function Page() {
     }
   };
 
+  
+
   const handleCoursesAndSection = async (
-    e: React.ChangeEvent<HTMLSelectElement>,
+    option: any,
     type: "course" | "section"
   ) => {
-    const value = e.target.value;
-    if (type === "course") setSelectedCourse(value);
-    if (type === "section") setSelectedSection(value);
-    
-    const course = type === "course" ? value : selectedCourse;
-    const section = type === "section" ? value : selectedSection;
-    
-    
+    if (type === "course") setSelectedCourse(option);
+    if (type === "section") setSelectedSection(option);
+
+    const course = type === "course" ? option?.value : selectedCourse?.value;
+    const section = type === "section" ? option?.value : selectedSection?.value;
+
     if (course && section) {
-      setclasstimeLoading(true)
+      setClasstimeLoading(true);
       try {
         const res = await fetch(
           `/api/markattendance/classtime?course=${course}&section=${section}`
@@ -74,8 +76,8 @@ export default function Page() {
         setScheduleData(data);
       } catch (err) {
         console.error("Error fetching class times:", err);
-      }finally{
-        setclasstimeLoading(false);
+      } finally {
+        setClasstimeLoading(false);
       }
     }
   };
@@ -85,14 +87,12 @@ export default function Page() {
       alert("Please select all fields before saving.");
       return;
     }
-
     setLoading(true);
     try {
       const res = await fetch(
-        `/api/markattendance/students?course=${selectedCourse}`
+        `/api/markattendance/students?course=${selectedCourse.value}`
       );
       if (!res.ok) throw new Error("Failed to fetch students");
-
       const data = await res.json();
       setStudents(data);
     } catch (err) {
@@ -111,177 +111,130 @@ export default function Page() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ students }),
         });
-
         if (!res.ok) throw new Error("Failed to start camera");
       } catch (err) {
         console.error("Error in second API call:", err);
       }
     };
-
     secondApiCall();
   }, [students]);
+
   const handleStopDetection = async () => {
     try {
+      setLoading(true);
       const res = await fetch(`/api/markattendance/detectstudent`);
       if (!res.ok) throw new Error("Failed to detect student");
-
       const data = await res.json();
       const detectedStudents = students.filter((s) => data.ids.includes(s.id));
-
       if (detectedStudents.length > 0) {
         setPresentStudents((prev) => {
-          const alreadyAdded = detectedStudents.filter((detectedStudent) =>
-            prev.some((s) => s.id === detectedStudent.id)
+          const alreadyAddedIds = prev.map((s) => s.id);
+          const newStudents = detectedStudents.filter(
+            (s) => !alreadyAddedIds.includes(s.id)
           );
-          return [
-            ...prev,
-            ...detectedStudents.filter(
-              (detectedStudent) =>
-                !alreadyAdded.some((s) => s.id === detectedStudent.id)
-            ),
-          ];
+          return [...prev, ...newStudents];
         });
       } else {
         alert("No matching students found in the registered list.");
       }
     } catch (err) {
       console.error("Error detecting student:", err);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // handleClasEnd
   const handleClasEnd = async () => {
+    setLoading(true);
     if (!selectedClass || !presentStudents.length) {
       toast.error(
         "Please ensure all details are selected and students are marked."
       );
+      setLoading(false);
       return;
     }
-    console.log("Selected Class: ", selectedClass);
-
     try {
       const data = {
-        class_id: selectedClass,
-        week: selectedWeek,
-        students: presentStudents,
+        class_id: selectedClass.value,
+        week: selectedWeek.value,
+        students: presentStudents.map((student) => student.id),
       };
-
+      console.log("Data: ", data);
       const res = await fetch("/api/markattendance/mark", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-
-      if (!res.ok) {
-        throw new Error("Error during class end operation");
-      }
-
+      if (!res.ok) throw new Error("Error during class end operation");
+      setSelectedDepartment(null);
+      setSelectedCourse(null);
+      setSelectedSection(null);
+      setSelectedClass(null);
+      setSelectedWeek(null);
+      setStudents([]);
+      setPresentStudents([]);
+      setCourseData([]);
+      setScheduleData([]);
       toast.success("Attendance has been marked");
     } catch (err) {
       console.error("Error during API call:", err);
       toast.error("Error marking attendance");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <>
       <Navbar />
-      <Toaster position="top-right" reverseOrder={false} />
+      <Toaster position="top-center" reverseOrder={false} />
       <div className="px-4 md:px-20 py-10">
         <h1 className="text-2xl md:text-3xl font-bold mb-6">Mark Attendance</h1>
 
         <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4 mb-8">
-          <select
-            className="h-10 rounded-md p-2 border-2"
+          <Select
+            options={departments.map((dep) => ({ value: dep, label: dep }))}
             value={selectedDepartment}
             onChange={handleDepartment}
-          >
-            <option value="">Select Department</option>
-            {departments.map((dep) => {
-              const value = dep
-                .replace(/\s+/g, "")
-                .replace(/^./, (char) => char.toLowerCase());
-              return (
-                <option key={value} value={value}>
-                  {dep}
-                </option>
-              );
-            })}
-          </select>
-
-          <select
-            className={`h-10 rounded-md p-2 border-2 ${
-              courseLoading ? "bg-gray-200 cursor-not-allowed" : "bg-white"
-            }`}
+            placeholder="Select Department"
+          />
+          <Select
+            isLoading={courseLoading}
+            options={courseData.map((course) => ({
+              value: course.id,
+              label: course.coursename,
+            }))}
             value={selectedCourse}
-            onChange={(e) => handleCoursesAndSection(e, "course")}
-            disabled={courseLoading}
-          >
-            {courseLoading ? (
-              <option>Loading...</option>
-            ) : (
-              <>
-                <option value="">Select Course</option>
-                {courseData.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.coursename}
-                  </option>
-                ))}
-              </>
-            )}
-          </select>
-
-          <select
-            className="h-10 rounded-md p-2 border-2"
+            onChange={(option) => handleCoursesAndSection(option, "course")}
+            placeholder="Select Course"
+            isDisabled={courseLoading}
+          />
+          <Select
+            options={sections.map((sec) => ({
+              value: sec,
+              label: `Section - ${sec}`,
+            }))}
             value={selectedSection}
-            onChange={(e) => handleCoursesAndSection(e, "section")}
-          >
-            <option value="">Select Section</option>
-            {sections.map((item) => (
-              <option key={item} value={item}>
-                Section - {item}
-              </option>
-            ))}
-          </select>
-
-          {/* week  */}
-
-          <select
-            className="h-10 rounded-md p-2 border-2"
+            onChange={(option) => handleCoursesAndSection(option, "section")}
+            placeholder="Select Section"
+          />
+          <Select
+            options={weeks.map((week) => ({ value: week, label: week }))}
             value={selectedWeek}
-            onChange={(e) => setSelectedWeek(e.target.value)}
-          >
-            <option value="">Select Week</option>
-            {weeks.map((item, index) => (
-              <option key={index} value={item}>
-                {item}
-              </option>
-            ))}
-          </select>
-
-          <select
-            className={`h-10 rounded-md p-2 border-2 ${
-              classtimeLoading ? "bg-gray-200 cursor-not-allowed" : "bg-white"
-            }`}
+            onChange={(option) => setSelectedWeek(option)}
+            placeholder="Select Week"
+          />
+          <Select
+            isLoading={classtimeLoading}
+            options={scheduleData.map((item) => ({
+              value: item.id,
+              label: `${item.day} - ${item.timerange}`,
+            }))}
             value={selectedClass}
-            onChange={(e) => setSelectedClass(e.target.value)}
-            disabled={classtimeLoading}
-          >
-            {classtimeLoading ? (
-              <option>Loading...</option>
-            ) : (
-              <>
-                <option value="">Select Class Time</option>
-                {scheduleData.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.day} - {item.timerange}
-                  </option>
-                ))}
-              </>
-            )}
-          </select>
+            onChange={(option) => setSelectedClass(option)}
+            placeholder="Select Class Time"
+            isDisabled={classtimeLoading}
+          />
         </div>
 
         <div className="flex gap-4 mb-4">
@@ -297,10 +250,9 @@ export default function Page() {
           >
             Stop Detection
           </button>
-
           <button
-            className="flex-1 h-10 rounded-md bg-green-600 hover:bg-green-700 text-white transition"
             onClick={handleClasEnd}
+            className="flex-1 h-10 rounded-md bg-green-600 hover:bg-green-700 text-white transition"
           >
             End Class
           </button>
@@ -313,7 +265,6 @@ export default function Page() {
         )}
 
         <div className="mt-6 grid md:grid-cols-2 gap-8">
-          {/* Registered Students */}
           <div>
             <h2 className="text-xl font-semibold mb-4">Registered Students</h2>
             <div className="overflow-x-auto">
@@ -336,7 +287,6 @@ export default function Page() {
             </div>
           </div>
 
-          {/* Present Students */}
           <div>
             <h2 className="text-xl font-semibold mb-4">Present Students</h2>
             <div className="overflow-x-auto">
@@ -354,13 +304,6 @@ export default function Page() {
                       <td className="py-2 px-4 border">{student.regno}</td>
                     </tr>
                   ))}
-                  {presentStudents.length === 0 && (
-                    <tr>
-                      <td colSpan={2} className="text-center py-4">
-                        No students detected yet.
-                      </td>
-                    </tr>
-                  )}
                 </tbody>
               </table>
             </div>

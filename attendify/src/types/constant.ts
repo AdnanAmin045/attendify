@@ -1,3 +1,6 @@
+
+
+
 export const departments = [
   "Mechanical Engineering",
   "Electrical Engineering",
@@ -38,3 +41,14 @@ export const weeks = [
 ];
 export const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 export const sections = ["A","B","C","D"]
+
+export const semesterOptions = [
+  { value: 1, label: "1st Semester" },
+  { value: 2, label: "2nd Semester" },
+  { value: 3, label: "3rd Semester" },
+  { value: 4, label: "4th Semester" },
+  { value: 5, label: "5th Semester" },
+  { value: 6, label: "6th Semester" },
+  { value: 7, label: "7th Semester" },
+  { value: 8, label: "8th Semester" }
+];

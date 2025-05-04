@@ -34,14 +34,35 @@ export default function Navbar() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  const handleLogout = async () => {
+    try {
+      const response = await fetch("/api/auth/logout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (response.status === 200) {
+        window.location.href = "/auth/login";
+      } else {
+        console.error("Logout failed");
+      }
+    } catch (error) {
+      console.error("An error occurred during logout", error);
+    }
+  };
+
   const navItems = [
     { label: "Dashboard", icon: LayoutDashboard, href: "/admin_dashboard" },
     { label: "Teachers", icon: Users, href: "/admin_dashboard/teachers" },
     { label: "Courses", icon: Book, href: "/admin_dashboard/courses" },
     { label: "Students", icon: GraduationCap, href: "/admin_dashboard/students" },
     { label: "Class Schedule", icon: Calendar, href: "/admin_dashboard/schedule" },
-    { label: "Logout", icon: LogOut, href: "/logout" },
+    { label: "Logout", icon: LogOut, href: "#", onClick: handleLogout }, // Updated to use handleLogout
   ];
+
+ 
 
   return (
     <>
@@ -82,15 +103,15 @@ export default function Navbar() {
         {/* Menu items */}
         <nav className="flex flex-col mt-10 gap-2">
           {navItems.map((item, index) => {
-            const isActive = pathname === item.href; 
+            const isActive = pathname === item.href;
 
             return (
               <Link
                 key={index}
                 href={item.href}
+                onClick={item.onClick} // Ensure logout calls the handleLogout function
                 className={`flex items-center gap-4 p-3 mx-2 text-sm rounded-md transition-colors duration-200 cursor-pointer
-                  ${isActive ? "bg-black text-white" : "hover:bg-[#f8f9fb]"}
-                `}
+                  ${isActive ? "bg-black text-white" : "hover:bg-[#f8f9fb]"}`}
               >
                 <item.icon size={24} />
                 <span

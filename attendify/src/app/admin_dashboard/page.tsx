@@ -73,12 +73,6 @@ export default function HomePage() {
     ],
   };
 
-  useEffect(()=>{
-      const get = async() => {
-        await fetch("/api/createTables")
-      }
-      get()
-  },[])
 
   // Chart options with scales correctly typed
   const options: ChartOptions<"line"> = {

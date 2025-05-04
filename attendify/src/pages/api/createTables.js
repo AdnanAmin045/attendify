@@ -36,11 +36,11 @@ const students = `CREATE TABLE students (
     regno VARCHAR(50) NOT NULL UNIQUE,
     full_name VARCHAR(100) NOT NULL,
     department VARCHAR(100) NOT NULL,
-    section VARCHAR(10),
-    email VARCHAR(100),
+    section VARCHAR(10) NOT NULL,
+    email VARCHAR(100) NOT NULL,
     phone VARCHAR(20),
-    image_url TEXT,
-    image_bytea BYTEA,
+    image_url TEXT NOT NULL,
+    image_bytea BYTEA NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );`
 
@@ -69,9 +69,11 @@ const attendence = `CREATE TABLE classAttendence (
     date DATE DEFAULT CURRENT_DATE
 );`
 
+
+
 export default async function handler(req, res) {
   try {
-    const query = courses;
+    const query = attendence;
 
     // Execute the query
     await pool.query(query);

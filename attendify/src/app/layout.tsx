@@ -1,4 +1,5 @@
 import "./globals.css";
+
 export default function RootLayout({
   children,
 }: {
@@ -7,6 +8,8 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        <link rel="icon" href="/logo.png" />
+        <title>Attendify</title>
         <link
           href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap"
           rel="stylesheet"

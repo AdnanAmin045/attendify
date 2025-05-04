@@ -23,3 +23,9 @@ export interface Course {
     department: string;
     full_name:string;
 }
+
+export interface userInfo{
+  full_name:string;
+  email:string;
+  department:string;
+}

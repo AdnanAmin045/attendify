@@ -1,31 +1,86 @@
-"use client";
+"use client"
 import React, { useState, useEffect } from "react";
 import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
 import toast, { Toaster } from "react-hot-toast";
 import Navbar from "@/components/admin/Navbar";
-import { departments, semesters, days, sections } from "@/types/constant"; // Added sections to constants
+import { departments, semesterOptions, days, sections } from "@/types/constant";
+import Select, { StylesConfig, SingleValue } from "react-select";
 
 interface Course {
   id: number;
   name: string;
 }
 
+interface SelectOption {
+  value: string | number;
+  label: string;
+}
+
+
 const SchedulePage = () => {
-  const [selectedDepartment, setSelectedDepartment] = useState("");
-  const [selectedSemester, setSelectedSemester] = useState("");
+  const [selectedDepartment, setSelectedDepartment] = useState<string | null>(null);
+  const [selectedSemester, setSelectedSemester] = useState<string | number | null>(null);
   const [availableCourses, setAvailableCourses] = useState<Course[]>([]);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
-  const [selectedDay, setSelectedDay] = useState("");
-  const [startTime, setStartTime] = useState("");
-  const [endTime, setEndTime] = useState("");
-  const [selectedSection, setSelectedSection] = useState("");
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  const [startTime, setStartTime] = useState<string>("");
+  const [endTime, setEndTime] = useState<string>("");
+  const [selectedSection, setSelectedSection] = useState<string | null>(null);
   const [isLoadingCourses, setIsLoadingCourses] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+
+  const customSelectStyles: StylesConfig<SelectOption, false> = {
+    control: (provided, state) => ({
+      ...provided,
+      borderColor: state.isFocused ? "black" : provided.borderColor,
+      boxShadow: state.isFocused ? "0 0 0 1px black" : provided.boxShadow,
+      "&:hover": {
+        borderColor: "black",
+      },
+    }),
+    option: (provided, state) => ({
+      ...provided,
+      backgroundColor: state.isSelected ? 'black' : state.isFocused ? '#f0f0f0' : 'white',
+      color: state.isSelected ? 'white' : 'black',
+      '&:hover': {
+        backgroundColor: '#e0e0e0',
+      },
+    }),
+    singleValue: (provided) => ({
+      ...provided,
+      color: 'black',
+    }),
+    placeholder: (provided) => ({
+      ...provided,
+      color: '#9ca3af',
+    }),
+  };
+
+  const departmentOptions = departments.map((dep) => ({
+    value: dep,
+    label: dep,
+  }));
+
+  const sectionOptions = sections.map((section) => ({
+    value: section,
+    label: section,
+  }));
+
+  const dayOptions = days.map((day) => ({
+    value: day,
+    label: day,
+  }));
+
+  const courseOptions = availableCourses.map((course) => ({
+    value: course.id,
+    label: course.name,
+  }));
+
   useEffect(() => {
     const fetchCourses = async () => {
-      if (selectedDepartment && selectedSemester) {
+      if (selectedDepartment && selectedSemester !== null) {
         setIsLoadingCourses(true);
         setAvailableCourses([]);
         setSelectedCourse(null);
@@ -34,9 +89,9 @@ const SchedulePage = () => {
           const res = await fetch(
             `/api/schedule/courses?department=${selectedDepartment}&semester=${selectedSemester}`
           );
-          
+
           if (!res.ok) throw new Error("Failed to fetch courses");
-          
+
           const data = await res.json();
           setAvailableCourses(data);
         } catch (err) {
@@ -61,12 +116,12 @@ const SchedulePage = () => {
 
     if (
       !selectedDepartment ||
-      !selectedSemester ||
+      selectedSemester === null ||
       !selectedCourse ||
       !selectedDay ||
       !startTime ||
       !endTime ||
-      !selectedSection // Added section validation
+      !selectedSection
     ) {
       toast.error("Please fill in all fields");
       setIsSubmitting(false);
@@ -96,16 +151,15 @@ const SchedulePage = () => {
       if (!response.ok) throw new Error("Failed to save schedule");
 
       toast.success("Schedule added successfully!");
-      
-      // Reset form
-      setSelectedDepartment("");
-      setSelectedSemester("");
+
+      setSelectedDepartment(null);
+      setSelectedSemester(null);
       setAvailableCourses([]);
       setSelectedCourse(null);
-      setSelectedDay("");
+      setSelectedDay(null);
       setStartTime("");
       setEndTime("");
-      setSelectedSection(""); // Reset section
+      setSelectedSection(null);
     } catch (err) {
       toast.error("Failed to save schedule");
       console.error(err);
@@ -115,203 +169,187 @@ const SchedulePage = () => {
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      <Toaster position="top-right" />
+    <div className="min-h-screen bg-gray-100">
+      <Toaster position="top-center" reverseOrder={false} />
+
       <div className="hidden sm:block fixed h-full z-40">
         <Navbar />
       </div>
 
-      <div className="flex-1 overflow-auto ml-0 sm:ml-20 lg:ml-64 px-6 py-10">
-        <div className="flex items-center gap-4 mb-8">
-          <Link
-            href="/admin_dashboard/schedule"
-            className="bg-gray-200 hover:bg-gray-300 p-3 rounded-xl"
-          >
-            <ChevronLeft className="w-6 h-6" />
-          </Link>
-          <h1 className="text-3xl font-bold">Add Class Schedule</h1>
-        </div>
+      <div className="sm:hidden fixed top-4 left-4 z-50">
+        <Navbar />
+      </div>
 
-        <form onSubmit={handleSubmit} className="bg-white shadow-xl p-8 rounded-2xl">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Department */}
-            <div className="flex flex-col">
-              <label className="font-semibold mb-2">Department</label>
-              <select
-                value={selectedDepartment}
-                onChange={(e) => setSelectedDepartment(e.target.value)}
-                className="border rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
+      <div className="flex-1 overflow-auto ml-0 sm:ml-20 lg:ml-64 px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-4xl mx-auto">
+          <div className="flex flex-col gap-2 mb-8">
+            <div className="flex items-center gap-4">
+              <Link
+                href="/admin_dashboard/schedule"
+                className="text-gray-700 hover:text-black flex items-center gap-2 bg-gray-200 hover:bg-gray-300 p-2 rounded-lg transition"
               >
-                <option value="">Select Department</option>
-                {departments.map((dep) => {
-                  const value = dep
-                    .replace(/\s+/g, "")
-                    .replace(/^./, (char) => char.toLowerCase());
-                  return (
-                    <option key={value} value={value}>
-                      {dep}
-                    </option>
-                  );
-                })}
-              </select>
+                <ChevronLeft className="w-5 h-5" />
+                <span className="sr-only sm:not-sr-only">Back</span>
+              </Link>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+                Add Class Schedule
+              </h1>
             </div>
-
-            {/* Semester */}
-            <div className="flex flex-col">
-              <label className="font-semibold mb-2">Semester</label>
-              <select
-                value={selectedSemester}
-                onChange={(e) => setSelectedSemester(e.target.value)}
-                className="border rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-                disabled={!selectedDepartment}
-              >
-                <option value="">Select Semester</option>
-                {semesters.map((sem) => (
-                  <option key={sem} value={sem}>
-                    {sem}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Courses */}
-            {selectedDepartment && selectedSemester && (
-              <div className="flex flex-col">
-                <label className="font-semibold mb-2">Course</label>
-                {isLoadingCourses ? (
-                  <div className="border rounded-lg p-2 bg-gray-100 text-gray-500">
-                    Loading courses...
-                  </div>
-                ) : (
-                  <select
-                    value={selectedCourse?.id || ""}
-                    onChange={(e) => {
-                      const courseId = Number(e.target.value);
-                      const course = availableCourses.find(c => c.id === courseId) || null;
-                      setSelectedCourse(course);
-                    }}
-                    className="border rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                    disabled={isLoadingCourses || availableCourses.length === 0}
-                  >
-                    <option value="">
-                      {availableCourses.length === 0
-                        ? "No courses available"
-                        : "Select Course"}
-                    </option>
-                    {availableCourses.map((course) => (
-                      <option key={course.id} value={course.id}>
-                        {course.name}
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </div>
-            )}
-
-            {/* Section - New Field */}
-            <div className="flex flex-col">
-              <label className="font-semibold mb-2">Section</label>
-              <select
-                value={selectedSection}
-                onChange={(e) => setSelectedSection(e.target.value)}
-                className="border rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-                disabled={!selectedCourse}
-              >
-                <option value="">Select Section</option>
-                {sections.map((section) => (
-                  <option key={section} value={section}>
-                    {section}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Day */}
-            <div className="flex flex-col">
-              <label className="font-semibold mb-2">Day</label>
-              <select
-                value={selectedDay}
-                onChange={(e) => setSelectedDay(e.target.value)}
-                className="border rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-                disabled={!selectedSection} // Changed to depend on section selection
-              >
-                <option value="">Select Day</option>
-                {days.map((day) => (
-                  <option key={day} value={day}>
-                    {day}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Start Time */}
-            <div className="flex flex-col">
-              <label className="font-semibold mb-2">Start Time</label>
-              <input
-                type="time"
-                value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-                className="border rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-                disabled={!selectedDay}
-              />
-            </div>
-
-            {/* End Time */}
-            <div className="flex flex-col">
-              <label className="font-semibold mb-2">End Time</label>
-              <input
-                type="time"
-                value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
-                className="border rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-                disabled={!startTime}
-              />
-            </div>
+            <p className="text-sm text-gray-600">
+              Fill out the form to add a new schedule. Fields marked with{" "}
+              <span className="text-red-500">*</span> are required.
+            </p>
           </div>
 
-          <button
-            type="submit"
-            className={`w-full mt-8 py-3 px-6 text-white font-medium rounded-lg flex justify-center items-center gap-2 ${
-              isSubmitting ? "bg-blue-400" : "bg-blue-600 hover:bg-blue-700"
-            }`}
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? (
-              <>
-                <svg
-                  className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
+          <div className="bg-white shadow-lg rounded-xl p-6 sm:p-8 border border-gray-200">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Department */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-800">
+                    Department <span className="text-red-500">*</span>
+                  </label>
+                  <Select<SelectOption>
+                    options={departmentOptions}
+                    onChange={(newValue: SingleValue<SelectOption>) =>
+                      setSelectedDepartment(newValue?.value as string || null)
+                    }
+                    value={departmentOptions.find(
+                      (option) => option.value === selectedDepartment
+                    )}
+                    placeholder="Select Department"
+                    styles={customSelectStyles}
+                    isSearchable
+                  />
+                </div>
+
+                {/* Semester */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-800">
+                    Semester <span className="text-red-500">*</span>
+                  </label>
+                  <Select<SelectOption>
+                    options={semesterOptions}
+                    onChange={(newValue: SingleValue<SelectOption>) =>
+                      setSelectedSemester(newValue?.value ?? null)
+                    }
+                    value={semesterOptions.find(
+                      (option) => option.value === selectedSemester
+                    )}
+                    placeholder="Select Semester"
+                    styles={customSelectStyles}
+                    isSearchable
+                    isDisabled={!selectedDepartment}
+                  />
+                </div>
+              </div>
+
+              {/* Day */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-800">
+                  Day <span className="text-red-500">*</span>
+                </label>
+                <Select<SelectOption>
+                  options={dayOptions}
+                  onChange={(newValue: SingleValue<SelectOption>) =>
+                    setSelectedDay(newValue?.value as string || null)
+                  }
+                  value={dayOptions.find((option) => option.value === selectedDay)}
+                  placeholder="Select Day"
+                  styles={customSelectStyles}
+                  isSearchable
+                />
+              </div>
+
+              {/* Time Range */}
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-800">
+                    Start Time <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="time"
+                    className="w-full border rounded p-2"
+                    value={startTime}
+                    onChange={(e) => setStartTime(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-800">
+                    End Time <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="time"
+                    className="w-full border rounded p-2"
+                    value={endTime}
+                    onChange={(e) => setEndTime(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* Section */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-800">
+                  Section <span className="text-red-500">*</span>
+                </label>
+                <Select<SelectOption>
+                  options={sectionOptions}
+                  onChange={(newValue: SingleValue<SelectOption>) =>
+                    setSelectedSection(newValue?.value as string || null)
+                  }
+                  value={sectionOptions.find(
+                    (option) => option.value === selectedSection
+                  )}
+                  placeholder="Select Section"
+                  styles={customSelectStyles}
+                  isSearchable
+                />
+              </div>
+
+              {/* Course */}
+              {selectedDepartment && selectedSemester !== null && (
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-800">
+                    Course <span className="text-red-500">*</span>
+                  </label>
+                  {isLoadingCourses ? (
+                    <div className="flex items-center justify-center py-4">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black"></div>
+                    </div>
+                  ) : (
+                    <Select<SelectOption>
+                      options={courseOptions}
+                      onChange={(newValue: SingleValue<SelectOption>) => {
+                        const course =
+                          availableCourses.find(
+                            (c) => c.id === newValue?.value
+                          ) || null;
+                        setSelectedCourse(course);
+                      }}
+                      value={courseOptions.find(
+                        (option) => option.value === selectedCourse?.id
+                      )}
+                      placeholder="Select Course"
+                      styles={customSelectStyles}
+                      isSearchable
+                    />
+                  )}
+                </div>
+              )}
+
+              {/* Submit Button */}
+              <div>
+                <button
+                  type="submit"
+                  className="w-full bg-black text-white py-2 px-4 rounded hover:bg-gray-800 disabled:opacity-50"
+                  disabled={isSubmitting}
                 >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  ></circle>
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  ></path>
-                </svg>
-                Processing...
-              </>
-            ) : (
-              "Add Schedule"
-            )}
-          </button>
-        </form>
+                  {isSubmitting ? "Submitting..." : "Add Schedule"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       </div>
     </div>
   );
